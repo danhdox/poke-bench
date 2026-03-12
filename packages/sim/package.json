@@ -1,0 +1,16 @@
+{
+  "name": "@poke-bench/sim",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pkmn/sim": "^0.10.0",
+    "@poke-bench/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
