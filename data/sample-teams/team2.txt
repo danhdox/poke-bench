@@ -1,0 +1,60 @@
+Calyrex-Shadow @ Focus Sash
+Ability: As One (Spectrier)
+Level: 50
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Astral Barrage
+- Nasty Plot
+- Protect
+- Psyshock
+
+Incineroar @ Sitrus Berry
+Ability: Intimidate
+Level: 50
+EVs: 252 HP / 100 Atk / 156 SpD
+Careful Nature
+- Fake Out
+- Knock Off
+- Flare Blitz
+- Parting Shot
+
+Amoonguss @ Rocky Helmet
+Ability: Regenerator
+Level: 50
+EVs: 252 HP / 4 Def / 252 SpD
+Sassy Nature
+IVs: 0 Spe
+- Spore
+- Pollen Puff
+- Rage Powder
+- Protect
+
+Urshifu-Rapid-Strike @ Mystic Water
+Ability: Unseen Fist
+Level: 50
+EVs: 4 HP / 252 Atk / 252 Spe
+Jolly Nature
+- Surging Strikes
+- Close Combat
+- Aqua Jet
+- Protect
+
+Thundurus @ Life Orb
+Ability: Prankster
+Level: 50
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Thunderbolt
+- Sludge Bomb
+- Nasty Plot
+- Thunder Wave
+
+Landorus-Therian @ Choice Scarf
+Ability: Intimidate
+Level: 50
+EVs: 4 HP / 252 Atk / 252 Spe
+Jolly Nature
+- Earthquake
+- Rock Slide
+- U-turn
+- Superpower
