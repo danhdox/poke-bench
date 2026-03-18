@@ -7,7 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@poke-bench/shared": "workspace:*"
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@poke-bench/shared": "workspace:*",
+    "openai": "^6.27.0"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

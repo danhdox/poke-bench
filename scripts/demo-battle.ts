@@ -1,19 +1,19 @@
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { ensureServerEnvLoaded } from "../packages/shared/src/server-env";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Set DATABASE_URL to absolute path before any imports that use it
-const dbPath = join(__dirname, "../packages/db/dev.db");
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = `file:${dbPath}`;
-}
+ensureServerEnvLoaded();
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not configured. Add it to the repo-root .env.");
+  }
+
   const { PrismaClient } = await import("@prisma/client");
-  const { runBattle } = await import("@poke-bench/sim");
-  const { RandomAgent } = await import("@poke-bench/agents");
+  const { runBattle } = await import("../packages/sim/src/index.ts");
+  const { RandomAgent } = await import("../packages/agents/src/index.ts");
 
   const prisma = new PrismaClient();
 
@@ -92,56 +92,36 @@ async function main() {
     team1Text,
     team2Text,
     formatId,
-    async (side, request, legalChoices) => {
+    async ({ side, request, requestType, legalChoices, legalActions, observation, turn }) => {
       const agent = side === "p1" ? p1Agent : p2Agent;
-
-      let requestType: "teamPreview" | "move" | "switch" = "move";
-      if (request.teamPreview) requestType = "teamPreview";
-      else if (request.forceSwitch) requestType = "switch";
-
-      const legalActions = legalChoices.map((choice) => ({
-        id: choice,
-        label: choice,
-        kind: (choice.startsWith("switch")
-          ? "switch"
-          : choice.startsWith("team")
-          ? "teamPreview"
-          : "move") as "move" | "switch" | "teamPreview",
-      }));
 
       const start = Date.now();
       const decision = await agent.decide({
         battleId: battleDb.id,
-        turn: globalTurn,
+        turn,
         side,
         formatId,
         requestType,
         legalActions,
-        observation: {
-          battleId: battleDb.id,
-          formatId,
-          turn: globalTurn,
-          requestType,
-          side,
-          ownActive: [],
-          opponentActive: [],
-          ownBench: [],
-          opponentRevealed: [],
-          legalActions,
-        },
+        observation: { ...observation, battleId: battleDb.id },
       });
       const latencyMs = Date.now() - start;
 
       turnRecords.push({
         battleId: battleDb.id,
-        turnNumber: globalTurn,
+        turnNumber: turn,
         actingSide: side,
         requestType,
+        observationJson: JSON.stringify({ request, observation }),
+        legalActionsJson: JSON.stringify(legalChoices),
         chosenAction: decision.action,
         publicReasoning: decision.publicReasoning,
         confidence: decision.confidence,
         latencyMs,
         fallbackUsed: decision.fallbackUsed ?? false,
+        rawModelResponseJson: decision.rawResponse
+          ? JSON.stringify(decision.rawResponse)
+          : null,
       });
 
       if (requestType !== "teamPreview") {

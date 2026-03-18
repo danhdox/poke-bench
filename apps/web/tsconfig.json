@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "es2022"],
+    "allowJs": false,
+    "incremental": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "types": ["node"],
+    "paths": {
+      "@/components/hooks/*": ["./@/hooks/*"],
+      "@/components/*": ["./@/components/*"],
+      "@/hooks/*": ["./@/hooks/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/*": ["./*", "./@/*"]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/dev/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

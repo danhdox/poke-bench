@@ -7,13 +7,16 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "pnpm -r run dev",
-    "build": "pnpm -r run build",
-    "test": "pnpm -r run test",
+    "dev": "tsx scripts/run-with-root-env.ts pnpm --filter @poke-bench/web dev",
+    "build": "pnpm --filter @poke-bench/web build",
+    "test": "pnpm --filter @poke-bench/web exec tsc --noEmit",
     "db:generate": "pnpm --filter @poke-bench/db run db:generate",
-    "db:migrate": "pnpm --filter @poke-bench/db run db:migrate",
-    "db:seed": "pnpm --filter @poke-bench/db run db:seed",
-    "demo": "tsx scripts/demo-battle.ts"
+    "db:push": "tsx scripts/run-with-root-env.ts pnpm --filter @poke-bench/db run db:push",
+    "db:migrate": "tsx scripts/run-with-root-env.ts pnpm --filter @poke-bench/db run db:migrate",
+    "db:seed": "tsx scripts/run-with-root-env.ts pnpm --filter @poke-bench/db run db:seed",
+    "db:studio": "tsx scripts/run-with-root-env.ts pnpm --filter @poke-bench/db run db:studio",
+    "demo": "tsx scripts/demo-battle.ts",
+    "battle:models": "tsx scripts/run-model-battle.ts"
   },
   "devDependencies": {
     "@prisma/client": "^5.22.0",

@@ -1,5 +1,5 @@
 import type { AgentDecisionInput, AgentDecisionOutput } from "@poke-bench/shared";
-import type { Agent } from "./interface.js";
+import type { Agent } from "./interface";
 
 export class RandomAgent implements Agent {
   id: string;

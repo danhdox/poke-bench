@@ -8,16 +8,19 @@
   },
   "scripts": {
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:push": "tsx ../../scripts/run-with-root-env.ts prisma db push --skip-generate",
+    "db:migrate": "tsx ../../scripts/run-with-root-env.ts prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "tsx src/seed.ts",
-    "db:studio": "prisma studio"
+    "db:seed": "tsx ../../scripts/run-with-root-env.ts tsx src/seed.ts",
+    "db:studio": "tsx ../../scripts/run-with-root-env.ts prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "^5.7.1"
+    "@poke-bench/shared": "workspace:*",
+    "@poke-bench/sim": "workspace:*",
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
-    "prisma": "^5.7.1",
+    "prisma": "^5.22.0",
     "typescript": "^5.3.3",
     "tsx": "^4.7.0"
   }

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -22,6 +22,8 @@ model Agent {
   battlesAsAgent2 Battle[] @relation("Agent2Battles")
   wonBattles      Battle[] @relation("WinnerAgent")
   tournamentParticipants TournamentParticipant[]
+
+  @@unique([provider, modelId])
 }
 
 model Team {
@@ -36,6 +38,8 @@ model Team {
   
   battlesAsTeam1 Battle[] @relation("Team1Battles")
   battlesAsTeam2 Battle[] @relation("Team2Battles")
+
+  @@unique([name, formatId])
 }
 
 model Battle {

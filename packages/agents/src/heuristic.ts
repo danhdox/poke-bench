@@ -1,5 +1,5 @@
 import type { AgentDecisionInput, AgentDecisionOutput, LegalAction } from "@poke-bench/shared";
-import type { Agent } from "./interface.js";
+import type { Agent } from "./interface";
 
 const MOVE_BASE_POWERS: Record<string, number> = {
   "earthquake": 100,

@@ -1,0 +1,55 @@
+Gliscor @ Toxic Orb
+Ability: Poison Heal
+EVs: 244 HP / 184 SpD / 80 Spe
+Careful Nature
+- Earthquake
+- Spikes
+- Roost
+- Toxic
+
+Cinderace @ Heavy-Duty Boots
+Ability: Libero
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Pyro Ball
+- U-turn
+- Court Change
+- High Jump Kick
+
+Serperior @ Leftovers
+Ability: Contrary
+EVs: 4 Def / 252 SpA / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Leaf Storm
+- Tera Blast
+- Glare
+- Substitute
+
+Iron Valiant @ Booster Energy
+Ability: Quark Drive
+EVs: 4 Atk / 252 SpA / 252 Spe
+Naive Nature
+- Moonblast
+- Close Combat
+- Thunderbolt
+- Encore
+
+Garganacl @ Leftovers
+Ability: Purifying Salt
+EVs: 252 HP / 4 Def / 252 SpD
+Careful Nature
+- Salt Cure
+- Recover
+- Protect
+- Earthquake
+
+Moltres @ Heavy-Duty Boots
+Ability: Flame Body
+EVs: 248 HP / 252 Def / 8 Spe
+Bold Nature
+IVs: 0 Atk
+- Flamethrower
+- U-turn
+- Roost
+- Will-O-Wisp
