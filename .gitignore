@@ -1,5 +1,9 @@
 node_modules/
 .next/
+**/.next/
+apps/web/.next/
+.turbo/
+**/.turbo/
 dist/
 build/
 output/
