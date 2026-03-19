@@ -14,7 +14,7 @@ export default async function NewBattlePage() {
   ]);
 
   return (
-    <div className="flex h-[calc(100svh-var(--header-height))] min-h-0 flex-1 flex-col overflow-hidden md:h-[calc(100svh-var(--header-height)-1rem)]">
+    <div className="flex h-[calc(100svh-var(--header-height))] min-h-0 flex-1 flex-col overflow-hidden">
       <BattleForms
         models={models}
         catalogStates={catalogStates}

@@ -46,6 +46,7 @@ export function searchDex(kind: DexEntityKind, q?: string): DexSearchResult[] {
         id: item.id,
         name: item.name,
         kind,
+        subtitle: item.shortDesc,
       }));
     case "ability":
       return byQuery(Dex.abilities.all().filter((item) => item.exists), q).map((item) => ({

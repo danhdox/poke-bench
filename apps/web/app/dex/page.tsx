@@ -7,6 +7,7 @@ import {
   searchDex,
 } from "@poke-bench/dex";
 import { PageScrollLock } from "../../components/page-scroll-lock";
+import { ItemDisplay } from "../../components/item-display";
 import { getPokemonSpriteUrl } from "../../lib/pokemon-sprites";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,13 @@ export default async function DexPage({
   const itemDetail = kind === "item" ? getItem(entry) : null;
   const abilityDetail = kind === "ability" ? getAbility(entry) : null;
   const detail = pokemonDetail ?? moveDetail ?? itemDetail ?? abilityDetail;
+  const pokemonAbilities = pokemonDetail
+    ? Object.entries(pokemonDetail.abilities).map(([slot, ability]) => ({
+        slot,
+        name: ability,
+        shortDesc: getAbility(ability)?.shortDesc ?? null,
+      }))
+    : [];
 
   return (
     <div className="flex h-[calc(100svh-var(--header-height))] min-h-0 flex-1 flex-col overflow-hidden md:h-[calc(100svh-var(--header-height)-1rem)]">
@@ -101,6 +109,15 @@ export default async function DexPage({
                             className="size-10 object-contain"
                             loading="lazy"
                             decoding="async"
+                          />
+                        </div>
+                      ) : result.kind === "item" ? (
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted/40">
+                          <ItemDisplay
+                            itemName={result.name}
+                            tooltipDescription={result.subtitle}
+                            showName={false}
+                            iconClassName="size-10 border-0 bg-transparent"
                           />
                         </div>
                       ) : null}
@@ -210,15 +227,19 @@ export default async function DexPage({
                           </CardHeader>
                           <CardContent className="px-5 pb-5 pt-0">
                             <div className="space-y-3">
-                            {Object.entries(pokemonDetail.abilities).map(([slot, ability]) => (
-                              <div
-                                key={slot}
-                                className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3"
-                              >
-                                <div className="text-sm text-muted-foreground">
-                                  {formatAbilitySlot(slot)}
+                            {pokemonAbilities.map((ability) => (
+                              <div key={ability.slot} className="rounded-lg border bg-muted/20 px-4 py-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-sm text-muted-foreground">
+                                    {formatAbilitySlot(ability.slot)}
+                                  </div>
+                                  <div className="text-right font-medium">{ability.name}</div>
                                 </div>
-                                <div className="text-right font-medium">{ability}</div>
+                                {ability.shortDesc ? (
+                                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                    {ability.shortDesc}
+                                  </p>
+                                ) : null}
                               </div>
                             ))}
                             </div>
@@ -258,9 +279,61 @@ export default async function DexPage({
                 ) : null}
 
                 {!pokemonDetail ? (
-                  <pre className="mono rounded-md border bg-muted/30 p-4 text-sm text-foreground">
-                    {JSON.stringify(detail, null, 2)}
-                  </pre>
+                  itemDetail ? (
+                    <Card className="gap-0 py-0 shadow-none">
+                      <CardContent className="px-6 py-6">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="flex size-24 shrink-0 items-center justify-center rounded-2xl border bg-background/80">
+                              <ItemDisplay
+                                itemName={itemDetail.name}
+                                tooltipDescription={itemDetail.shortDesc}
+                                showName={false}
+                                iconClassName="size-16 border-0 bg-transparent"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <div className="text-3xl font-semibold tracking-tight">
+                                {itemDetail.name}
+                              </div>
+                              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                                {itemDetail.shortDesc}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-lg border bg-background/70 px-4 py-3">
+                              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                                Entry ID
+                              </div>
+                              <div className="mt-1 font-medium">{itemDetail.id}</div>
+                            </div>
+                            <div className="rounded-lg border bg-background/70 px-4 py-3">
+                              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                                Choice Item
+                              </div>
+                              <div className="mt-1 font-medium">{itemDetail.isChoice ? "Yes" : "No"}</div>
+                            </div>
+                            <div className="rounded-lg border bg-background/70 px-4 py-3">
+                              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                                Berry
+                              </div>
+                              <div className="mt-1 font-medium">{itemDetail.isBerry ? "Yes" : "No"}</div>
+                            </div>
+                          </div>
+                        </div>
+                        {itemDetail.fling ? (
+                          <div className="mt-5 rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                            Fling power: <span className="font-medium text-foreground">{itemDetail.fling.basePower}</span>
+                          </div>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <pre className="mono rounded-md border bg-muted/30 p-4 text-sm text-foreground">
+                      {JSON.stringify(detail, null, 2)}
+                    </pre>
+                  )
                 ) : null}
               </div>
             ) : (

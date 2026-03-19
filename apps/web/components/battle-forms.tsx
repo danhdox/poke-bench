@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BattleArena } from "./battle-arena";
@@ -23,7 +22,7 @@ import {
   SIMPLE_TEAM_FORMAT_SET,
 } from "../lib/team-formats";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -78,11 +77,13 @@ export function BattleForms({
   teams,
   formats,
 }: BattleFormsProps) {
+  const PREVIEW_INTRO_DURATION_MS = 560;
   usePageScrollLock();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [consoleView, setConsoleView] = useState<"setup" | "teams">("setup");
+  const [previewIntroState, setPreviewIntroState] = useState<"idle" | "launching">("idle");
 
   const validTeams = useMemo(
     () =>
@@ -261,37 +262,46 @@ export function BattleForms({
       return;
     }
 
-    startTransition(async () => {
-      setError(null);
-      const response = await fetch("/api/battles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          formatId: battleForm.formatId,
-          model1: {
-            provider: selectedModel1.provider,
-            modelId: selectedModel1.modelId,
-          },
-          model2: {
-            provider: selectedModel2.provider,
-            modelId: selectedModel2.modelId,
-          },
-          team1Id: battleForm.team1Id,
-          team2Id: battleForm.team2Id,
-          maxTurns: Number(battleForm.maxTurns),
-        }),
+    if (pending || previewIntroState === "launching") {
+      return;
+    }
+
+    setError(null);
+    setPreviewIntroState("launching");
+
+    window.setTimeout(() => {
+      startTransition(async () => {
+        const response = await fetch("/api/battles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            formatId: battleForm.formatId,
+            model1: {
+              provider: selectedModel1.provider,
+              modelId: selectedModel1.modelId,
+            },
+            model2: {
+              provider: selectedModel2.provider,
+              modelId: selectedModel2.modelId,
+            },
+            team1Id: battleForm.team1Id,
+            team2Id: battleForm.team2Id,
+            maxTurns: Number(battleForm.maxTurns),
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          setPreviewIntroState("idle");
+          setError(payload.error ?? "Could not create battle");
+          return;
+        }
+        router.replace(`/battles/${payload.id}`);
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        setError(payload.error ?? "Could not create battle");
-        return;
-      }
-      router.replace(`/battles/${payload.id}`);
-    });
+    }, PREVIEW_INTRO_DURATION_MS);
   }
 
   return (
-    <div className="flex h-full min-h-0 max-h-full flex-1 overflow-hidden rounded-xl border bg-card">
+    <div className="flex h-full min-h-0 max-h-full flex-1 overflow-hidden bg-background">
       <div className="grid h-full min-h-0 max-h-full flex-1 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-stretch">
         <div className="h-full min-h-0 overflow-hidden">
           <BattleArena
@@ -300,6 +310,11 @@ export function BattleForms({
             subtitle="Pokemon Showdown-style battle stage"
             status="preview"
             formatLabel={battlePreview.formatName}
+            previewMatchup={{
+              leftLabel: `Player 1 · ${battlePreview.model1Name}`,
+              rightLabel: `Player 2 · ${battlePreview.model2Name}`,
+            }}
+            previewIntroState={previewIntroState}
             topSide={{
               trainerName: battlePreview.model2Name,
               teamName: battlePreview.team2Name,
@@ -339,10 +354,9 @@ export function BattleForms({
           />
         </div>
 
-        <section className="flex h-full min-h-0 max-h-full flex-col overflow-hidden border-t xl:border-t-0 xl:border-l">
+        <section className="flex h-full min-h-0 max-h-full flex-col overflow-hidden xl:border-l">
           <div className="border-b px-5 py-5">
-            <div className="flex flex-col gap-4">
-              <h2 className="text-lg font-semibold">Battle Console</h2>
+            <div className="flex flex-col gap-2">
               <Tabs
                 value={consoleView}
                 onValueChange={(value) => setConsoleView(value as "setup" | "teams")}
@@ -356,174 +370,181 @@ export function BattleForms({
             </div>
           </div>
 
-          <div className="h-0 min-h-0 flex-1 overflow-hidden p-6">
+          <div className="h-0 min-h-0 flex-1 overflow-hidden p-4 md:p-5">
             <Tabs
               value={consoleView}
               onValueChange={(value) => setConsoleView(value as "setup" | "teams")}
               className="h-full min-h-0 gap-0"
             >
               <TabsContent value="setup" className="mt-0 h-full min-h-0">
-                <div className="flex h-full min-h-0 flex-col overflow-y-auto pr-1">
-                <Card className="gap-0 py-0 shadow-none">
-                  <CardHeader className="px-4 py-4">
-                    <CardTitle className="text-sm">Setup</CardTitle>
-                    <CardDescription>Pick a format, two models, and two teams.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-4 px-4 pb-4 pt-0">
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label>Format</Label>
-                    <Select
-                      value={battleForm.formatId}
-                      onValueChange={updateFormat}
-                      disabled={availableFormats.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableFormats.map((format) => (
-                          <SelectItem key={format.id} value={format.id}>
-                            {format.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="h-0 min-h-0 flex-1 overflow-y-auto px-1">
+                    <div className="mx-auto flex w-full max-w-md flex-col gap-5">
+                    <div className="space-y-1">
+                      <h3 className="text-base font-medium">Setup</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Pick a format, two models, and two teams.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <Label>Format</Label>
+                        <Select
+                          value={battleForm.formatId}
+                          onValueChange={updateFormat}
+                          disabled={availableFormats.length === 0}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select format" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableFormats.map((format) => (
+                              <SelectItem key={format.id} value={format.id}>
+                                {format.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Max Turns</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={battleForm.maxTurns}
+                          onChange={(event) =>
+                            setBattleForm((current) => ({
+                              ...current,
+                              maxTurns: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <Label>Model 1</Label>
+                        <Select
+                          value={battleForm.model1Key}
+                          onValueChange={(value) =>
+                            setBattleForm((current) => ({ ...current, model1Key: value }))
+                          }
+                          disabled={models.length === 0}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {models.map((model) => (
+                              <SelectItem key={model.key} value={model.key}>
+                                {model.providerLabel} · {model.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Model 2</Label>
+                        <Select
+                          value={battleForm.model2Key}
+                          onValueChange={(value) =>
+                            setBattleForm((current) => ({ ...current, model2Key: value }))
+                          }
+                          disabled={models.length === 0}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {models.map((model) => (
+                              <SelectItem key={model.key} value={model.key}>
+                                {model.providerLabel} · {model.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4">
+                      <div className="space-y-2">
+                        <Label>Team 1</Label>
+                        <Select
+                          value={battleForm.team1Id}
+                          onValueChange={(value) =>
+                            setBattleForm((current) => ({ ...current, team1Id: value }))
+                          }
+                          disabled={teamsForSelectedFormat.length === 0}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select team" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teamsForSelectedFormat.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Team 2</Label>
+                        <Select
+                          value={battleForm.team2Id}
+                          onValueChange={(value) =>
+                            setBattleForm((current) => ({ ...current, team2Id: value }))
+                          }
+                          disabled={teamsForSelectedFormat.length === 0}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select team" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teamsForSelectedFormat.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {setupWarnings.map((warning) => (
+                      <div
+                        key={warning}
+                        className="border-l border-border pl-3 text-sm text-muted-foreground"
+                      >
+                        {warning}
+                      </div>
+                    ))}
+
+                    {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label>Max Turns</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={battleForm.maxTurns}
-                      onChange={(event) =>
-                        setBattleForm((current) => ({
-                          ...current,
-                          maxTurns: event.target.value,
-                        }))
-                      }
-                    />
+                  <div className="mt-4 border-t pt-4">
+                    <div className="mx-auto w-full max-w-md">
+                      <Button
+                        onClick={submitBattle}
+                        disabled={
+                          pending ||
+                          previewIntroState === "launching" ||
+                          !hasBattleRequirements
+                        }
+                        className="w-full"
+                      >
+                        {pending || previewIntroState === "launching"
+                          ? "Starting battle..."
+                          : "Start Battle"}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label>Model 1</Label>
-                    <Select
-                      value={battleForm.model1Key}
-                      onValueChange={(value) =>
-                        setBattleForm((current) => ({ ...current, model1Key: value }))
-                      }
-                      disabled={models.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {models.map((model) => (
-                          <SelectItem key={model.key} value={model.key}>
-                            {model.providerLabel} · {model.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Model 2</Label>
-                    <Select
-                      value={battleForm.model2Key}
-                      onValueChange={(value) =>
-                        setBattleForm((current) => ({ ...current, model2Key: value }))
-                      }
-                      disabled={models.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {models.map((model) => (
-                          <SelectItem key={model.key} value={model.key}>
-                            {model.providerLabel} · {model.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label>Team 1</Label>
-                    <Select
-                      value={battleForm.team1Id}
-                      onValueChange={(value) =>
-                        setBattleForm((current) => ({ ...current, team1Id: value }))
-                      }
-                      disabled={teamsForSelectedFormat.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select team" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {teamsForSelectedFormat.map((team) => (
-                          <SelectItem key={team.id} value={team.id}>
-                            {team.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Team 2</Label>
-                    <Select
-                      value={battleForm.team2Id}
-                      onValueChange={(value) =>
-                        setBattleForm((current) => ({ ...current, team2Id: value }))
-                      }
-                      disabled={teamsForSelectedFormat.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select team" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {teamsForSelectedFormat.map((team) => (
-                          <SelectItem key={team.id} value={team.id}>
-                            {team.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {setupWarnings.map((warning) => (
-                  <div
-                    key={warning}
-                    className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground"
-                  >
-                    {warning}
-                  </div>
-                ))}
-
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    onClick={submitBattle}
-                    disabled={pending || !hasBattleRequirements}
-                    className="w-full"
-                  >
-                    {pending ? "Starting..." : "Start Battle"}
-                  </Button>
-                  <Button asChild variant="outline" className="w-full">
-                    <Link href="/benchmarks">View Benchmarks</Link>
-                  </Button>
-                </div>
-                  </CardContent>
-                </Card>
                 </div>
               </TabsContent>
 

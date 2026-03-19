@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
-import { StatusPill } from "./status-pill";
+import { ItemDisplay } from "./item-display";
 import type { TeamPreviewMember } from "../lib/pokemon-sprites";
 import { toPokemonId } from "../lib/pokemon-sprites";
+import { getItemSpriteUrl } from "../lib/item-sprites";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export type BattleArenaMove = {
@@ -42,6 +44,14 @@ type BattleArenaSide = {
     hpPercent?: number | null;
     fainted?: boolean;
   }>;
+  activeBoosts?: Array<{
+    species: string;
+    boosts: Record<string, number>;
+  }>;
+  activeStatuses?: Array<{
+    species: string;
+    status?: string | null;
+  }>;
   sprites?: Array<{
     url: string;
     alt: string;
@@ -58,6 +68,11 @@ type BattleArenaProps = {
   topSide: BattleArenaSide;
   bottomSide: BattleArenaSide;
   actionEvent?: BattleArenaActionEvent | null;
+  previewMatchup?: {
+    leftLabel: string;
+    rightLabel: string;
+  };
+  previewIntroState?: "idle" | "launching";
   className?: string;
 };
 
@@ -75,6 +90,21 @@ type DexPokemonEntry = {
     spe: number;
   };
   bst: number;
+};
+
+type DexMoveEntry = {
+  id: string;
+  name: string;
+  type: string;
+  pp: number;
+  shortDesc?: string | null;
+};
+
+type DexAbilityEntry = {
+  id: string;
+  name: string;
+  rating: number;
+  shortDesc?: string | null;
 };
 
 type StageSprite = {
@@ -119,6 +149,38 @@ function getStatusClasses(status?: string | null) {
     default:
       return "border-black/10 bg-white/70 text-foreground/75";
   }
+}
+
+function getBoostLabel(stat: string) {
+  switch (stat.toLowerCase()) {
+    case "atk":
+      return "Atk";
+    case "def":
+      return "Def";
+    case "spa":
+      return "SpA";
+    case "spd":
+      return "SpD";
+    case "spe":
+      return "Spe";
+    case "accuracy":
+      return "Acc";
+    case "evasion":
+      return "Eva";
+    default:
+      return stat;
+  }
+}
+
+function getVisibleBoostChips(boosts: Record<string, number> | undefined) {
+  return Object.entries(boosts ?? {})
+    .filter(([, stage]) => typeof stage === "number" && stage !== 0)
+    .sort((left, right) => Math.abs(right[1]) - Math.abs(left[1]))
+    .map(([stat, stage]) => ({
+      key: stat,
+      label: `${getBoostLabel(stat)} ${stage > 0 ? `+${stage}` : stage}`,
+      positive: stage > 0,
+    }));
 }
 
 function getInlineSpriteFallback(label: string) {
@@ -201,6 +263,53 @@ function getMoveTypeClasses(type?: string | null) {
     default:
       return { card: "border-border bg-card", type: "bg-muted text-muted-foreground", meta: "text-muted-foreground" };
   }
+}
+
+function getPreviewMoveTypeClasses(type?: string | null) {
+  switch ((type ?? "").toLowerCase()) {
+    case "bug":
+      return { card: "border-lime-200 bg-lime-50/70", type: "text-lime-700", meta: "text-lime-800/70" };
+    case "dark":
+      return { card: "border-slate-300 bg-slate-50/80", type: "text-slate-700", meta: "text-slate-700/70" };
+    case "dragon":
+      return { card: "border-violet-200 bg-violet-50/70", type: "text-violet-700", meta: "text-violet-800/70" };
+    case "electric":
+      return { card: "border-yellow-200 bg-yellow-50/80", type: "text-yellow-700", meta: "text-yellow-800/70" };
+    case "fairy":
+      return { card: "border-pink-200 bg-pink-50/80", type: "text-pink-700", meta: "text-pink-800/70" };
+    case "fighting":
+      return { card: "border-orange-200 bg-orange-50/80", type: "text-orange-700", meta: "text-orange-800/70" };
+    case "fire":
+      return { card: "border-rose-200 bg-rose-50/75", type: "text-rose-700", meta: "text-rose-800/70" };
+    case "flying":
+      return { card: "border-sky-200 bg-sky-50/75", type: "text-sky-700", meta: "text-sky-800/70" };
+    case "ghost":
+      return { card: "border-indigo-200 bg-indigo-50/75", type: "text-indigo-700", meta: "text-indigo-800/70" };
+    case "grass":
+      return { card: "border-emerald-200 bg-emerald-50/75", type: "text-emerald-700", meta: "text-emerald-800/70" };
+    case "ground":
+      return { card: "border-amber-200 bg-amber-50/80", type: "text-amber-700", meta: "text-amber-800/70" };
+    case "ice":
+      return { card: "border-cyan-200 bg-cyan-50/80", type: "text-cyan-700", meta: "text-cyan-800/70" };
+    case "normal":
+      return { card: "border-stone-200 bg-stone-50/80", type: "text-stone-700", meta: "text-stone-700/70" };
+    case "poison":
+      return { card: "border-fuchsia-200 bg-fuchsia-50/75", type: "text-fuchsia-700", meta: "text-fuchsia-800/70" };
+    case "psychic":
+      return { card: "border-rose-200 bg-rose-50/75", type: "text-rose-700", meta: "text-rose-800/70" };
+    case "rock":
+      return { card: "border-stone-200 bg-stone-50/80", type: "text-stone-700", meta: "text-stone-700/70" };
+    case "steel":
+      return { card: "border-slate-200 bg-slate-50/80", type: "text-slate-700", meta: "text-slate-700/70" };
+    case "water":
+      return { card: "border-blue-200 bg-blue-50/75", type: "text-blue-700", meta: "text-blue-800/70" };
+    default:
+      return { card: "border-border bg-background", type: "text-muted-foreground", meta: "text-muted-foreground" };
+  }
+}
+
+function toMoveId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function getMoveEffectCategory(
@@ -288,10 +397,12 @@ function BattleArenaSideCard({
   side,
   accent,
   align,
+  previewIntroState = "idle",
 }: {
   side: BattleArenaSide;
   accent: "sky" | "amber";
   align: "left" | "right";
+  previewIntroState?: "idle" | "launching";
 }) {
   const palette =
     accent === "sky"
@@ -309,12 +420,15 @@ function BattleArenaSideCard({
         };
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [dexById, setDexById] = useState<Record<string, DexPokemonEntry>>({});
+  const [moveDexById, setMoveDexById] = useState<Record<string, DexMoveEntry>>({});
+  const [abilityDexById, setAbilityDexById] = useState<Record<string, DexAbilityEntry>>({});
   const teamSlots = useMemo(
     () => Array.from({ length: 6 }, (_, index) => side.sprites?.[index] ?? null),
     [side.sprites]
   );
   const showMeter = side.showMeter ?? true;
   const isPreviewLayout = !showMeter && (!side.moves || side.moves.length === 0);
+  const isLaunchingPreview = isPreviewLayout && previewIntroState === "launching";
   const highlightedSpecies = useMemo(
     () => new Set(side.highlightedSpecies ?? []),
     [side.highlightedSpecies]
@@ -323,6 +437,7 @@ function BattleArenaSideCard({
     () => new Set(side.highlightedMoveIds ?? []),
     [side.highlightedMoveIds]
   );
+  const previewSideLabel = align === "left" ? "Player 1" : "Player 2";
   const rosterSlots = useMemo(
     () => Array.from({ length: 6 }, (_, index) => side.roster?.[index] ?? null),
     [side.roster]
@@ -361,6 +476,14 @@ function BattleArenaSideCard({
   const inspectedRoster = rosterSlots[selectedIndex] ?? populatedSlots[0]?.entry ?? null;
   const inspectedSpecies = inspectedRoster?.species ?? null;
   const inspectedDexId = inspectedSpecies ? toPokemonId(inspectedSpecies) : null;
+  const inspectedAbilityId = inspectedRoster?.ability ? toPokemonId(inspectedRoster.ability) : null;
+  const inspectedMoveIds = useMemo(
+    () =>
+      Array.from(
+        new Set((inspectedRoster?.moves ?? []).map((move) => toMoveId(move)).filter(Boolean))
+      ),
+    [inspectedRoster]
+  );
   const rosterDexIds = useMemo(
     () =>
       Array.from(
@@ -416,6 +539,85 @@ function BattleArenaSideCard({
   }, [dexById, isPreviewLayout, rosterDexIds]);
 
   const inspectedDex = inspectedDexId ? dexById[inspectedDexId] : null;
+  const inspectedAbility = inspectedAbilityId ? abilityDexById[inspectedAbilityId] : null;
+
+  useEffect(() => {
+    if (!isPreviewLayout || !inspectedAbilityId || abilityDexById[inspectedAbilityId]) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadAbilityEntry() {
+      const response = await fetch(`/api/dex/abilities/${inspectedAbilityId}`, { cache: "force-cache" });
+      if (!response.ok || cancelled) {
+        return;
+      }
+
+      const entry = (await response.json()) as DexAbilityEntry;
+      if (cancelled) {
+        return;
+      }
+
+      setAbilityDexById((current) => ({
+        ...current,
+        [entry.id]: entry,
+      }));
+    }
+
+    void loadAbilityEntry();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [abilityDexById, inspectedAbilityId, isPreviewLayout]);
+
+  useEffect(() => {
+    if (!isPreviewLayout) {
+      return;
+    }
+
+    const missingMoveIds = inspectedMoveIds.filter((id) => !moveDexById[id]);
+    if (missingMoveIds.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadMoveEntries() {
+      const entries = await Promise.all(
+        missingMoveIds.map(async (id) => {
+          const response = await fetch(`/api/dex/moves/${id}`, { cache: "force-cache" });
+          if (!response.ok) {
+            return null;
+          }
+
+          return (await response.json()) as DexMoveEntry;
+        })
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      setMoveDexById((current) => ({
+        ...current,
+        ...Object.fromEntries(
+          entries.filter((entry): entry is DexMoveEntry => Boolean(entry)).map((entry) => [
+            entry.id,
+            entry,
+          ])
+        ),
+      }));
+    }
+
+    void loadMoveEntries();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inspectedMoveIds, isPreviewLayout, moveDexById]);
+
   const teamGrid = (
     <div
       className={cn(
@@ -444,7 +646,13 @@ function BattleArenaSideCard({
               : null,
             sprite?.fainted ? "bg-muted/50" : null,
             canInspect ? "cursor-pointer hover:bg-accent" : "cursor-default",
-            isSelected ? "border-primary/40 bg-accent" : null
+            isSelected ? "border-primary/40 bg-accent" : null,
+            isPreviewLayout ? "duration-500 ease-out" : null,
+            isLaunchingPreview
+              ? isSelected
+                ? "scale-[1.03] shadow-sm"
+                : "scale-95 opacity-55"
+              : null
           )}
         >
           {sprite ? (
@@ -472,6 +680,23 @@ function BattleArenaSideCard({
                   />
                 </div>
               ) : null}
+              {rosterEntry?.item ? (
+                <div
+                  className="absolute bottom-1 right-1 flex size-4 items-center justify-center"
+                  title={rosterEntry.item}
+                >
+                  <img
+                    src={getItemSpriteUrl(rosterEntry.item)}
+                    alt={rosterEntry.item}
+                    className="size-3 object-contain drop-shadow-[0_1px_2px_rgba(15,23,42,0.2)]"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+              ) : null}
             </>
           ) : (
             <div className="size-full rounded-md border border-dashed border-border bg-muted/20" />
@@ -484,98 +709,210 @@ function BattleArenaSideCard({
   const previewInfoCard = (
     <div
       className={cn(
-        `rounded-xl border ${palette.border} ${palette.surface} p-3 shadow-sm`,
-        "grid h-[19.25rem] w-[17rem] grid-rows-[auto_minmax(0,1fr)] sm:w-[17.75rem]"
+        "grid min-h-[20.75rem] w-[17rem] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-lg border bg-background px-3 py-3 transition-all duration-500 ease-out sm:w-[17.75rem]",
+        isLaunchingPreview
+          ? cn(
+              "min-h-[15rem] w-[16.5rem] rounded-xl shadow-sm",
+              align === "left"
+                ? "translate-x-8 -translate-y-4 scale-[0.96]"
+                : "-translate-x-8 translate-y-4 scale-[0.96]"
+            )
+          : null
       )}
     >
       <div className="space-y-1">
+        <div className="text-xs font-medium text-muted-foreground">{previewSideLabel}</div>
         <div className="text-base font-semibold text-foreground sm:text-lg">{side.activeLabel}</div>
-        <Badge
-          variant="secondary"
-          className={cn("border text-xs font-medium shadow-none", palette.tag)}
-        >
-          {side.trainerName}
-        </Badge>
+        {isPreviewLayout ? null : (
+          <Badge
+            variant="secondary"
+            className="w-fit border-0 bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground shadow-none"
+          >
+            {side.trainerName}
+          </Badge>
+        )}
       </div>
-      <div className="min-h-0 overflow-hidden pt-3">
+      <div className="min-h-0 pt-3">
         {inspectedRoster ? (
-          <div className="grid h-full min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] rounded-lg border bg-muted/10 p-3">
-            <div>
+          <div className="grid min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-3">
+            <div className="min-w-0">
               <div className="text-sm font-semibold text-foreground">{inspectedRoster.species}</div>
               <div className={cn("mt-1 text-xs", palette.detail)}>
                 {inspectedDex?.types.join(" / ") ?? "Loading typing..."}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg border bg-muted/20 px-2 py-1.5">
+            <div
+              className={cn(
+                "mt-3 grid grid-cols-2 gap-2 text-xs transition-all duration-400 ease-out",
+                isLaunchingPreview ? "max-h-0 -translate-y-2 overflow-hidden opacity-0" : "max-h-40 opacity-100"
+              )}
+            >
+              <div className="rounded-md border bg-background px-2 py-1.5">
                 <div className="text-xs text-muted-foreground">
                   Item
                 </div>
-                <div className="mt-1 truncate font-medium text-foreground">
-                  {inspectedRoster.item ?? "None"}
-                </div>
+                <ItemDisplay
+                  itemName={inspectedRoster.item}
+                  className="mt-1 w-full"
+                  textClassName="text-sm"
+                  iconClassName="rounded-md border-0 bg-muted/60"
+                  showName={false}
+                />
               </div>
-              <div className="rounded-lg border bg-muted/20 px-2 py-1.5">
+              <div className="rounded-md border bg-background px-2 py-1.5">
                 <div className="text-xs text-muted-foreground">
                   Ability
                 </div>
-                <div className="mt-1 truncate font-medium text-foreground">
-                  {inspectedRoster.ability ?? "Unknown"}
-                </div>
+                <TooltipProvider delayDuration={120}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="mt-1 truncate font-medium text-foreground">
+                        {inspectedRoster.ability ?? "Unknown"}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent sideOffset={6} className="max-w-64 space-y-1.5 px-3 py-2 text-left">
+                      <div className="font-medium">{inspectedRoster.ability ?? "Unknown"}</div>
+                      <div className="text-[11px] leading-5 text-background/85">
+                        {inspectedAbility?.shortDesc ?? "Loading ability description..."}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-1.5 text-xs">
+            <div
+              className={cn(
+                "mt-2 grid grid-cols-3 gap-1.5 text-xs transition-all duration-400 ease-out",
+                isLaunchingPreview ? "max-h-0 -translate-y-2 overflow-hidden opacity-0" : "max-h-40 opacity-100"
+              )}
+            >
               {inspectedDex ? (
                 <>
-                  <div className="rounded-md border bg-muted/20 px-2 py-1">
+                  <div className="rounded-md border bg-background px-2 py-1">
                     <div className="text-muted-foreground">HP</div>
                     <div className="font-semibold">{inspectedDex.baseStats.hp}</div>
                   </div>
-                  <div className="rounded-md border bg-muted/20 px-2 py-1">
+                  <div className="rounded-md border bg-background px-2 py-1">
                     <div className="text-muted-foreground">Atk</div>
                     <div className="font-semibold">{inspectedDex.baseStats.atk}</div>
                   </div>
-                  <div className="rounded-md border bg-muted/20 px-2 py-1">
+                  <div className="rounded-md border bg-background px-2 py-1">
                     <div className="text-muted-foreground">Def</div>
                     <div className="font-semibold">{inspectedDex.baseStats.def}</div>
                   </div>
-                  <div className="rounded-md border bg-muted/20 px-2 py-1">
+                  <div className="rounded-md border bg-background px-2 py-1">
                     <div className="text-muted-foreground">SpA</div>
                     <div className="font-semibold">{inspectedDex.baseStats.spa}</div>
                   </div>
-                  <div className="rounded-md border bg-muted/20 px-2 py-1">
+                  <div className="rounded-md border bg-background px-2 py-1">
                     <div className="text-muted-foreground">SpD</div>
                     <div className="font-semibold">{inspectedDex.baseStats.spd}</div>
                   </div>
-                  <div className="rounded-md border bg-muted/20 px-2 py-1">
+                  <div className="rounded-md border bg-background px-2 py-1">
                     <div className="text-muted-foreground">Spe</div>
                     <div className="font-semibold">{inspectedDex.baseStats.spe}</div>
                   </div>
                 </>
               ) : (
-                <div className="col-span-3 rounded-md border bg-muted/20 px-2 py-1 text-muted-foreground">
+                <div className="col-span-3 rounded-md border bg-background px-2 py-1 text-muted-foreground">
                   Loading quick stats...
                 </div>
               )}
             </div>
             <div className="mt-2 min-h-0 overflow-hidden">
-              <div className="mb-1 text-xs font-medium text-muted-foreground">
-                Moves
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {inspectedRoster.moves.slice(0, 4).map((move) => (
-                  <div
-                    key={`${inspectedRoster.species}-${move}`}
-                    className="truncate rounded-md border bg-muted/20 px-2 py-1.5 text-xs font-medium text-foreground"
-                  >
-                    {move}
+              <div
+                className={cn(
+                  "transition-all duration-400 ease-out",
+                  isLaunchingPreview ? "max-h-0 -translate-y-2 overflow-hidden opacity-0" : "max-h-80 opacity-100"
+                )}
+              >
+                <div className="mb-1 text-xs font-medium text-muted-foreground">
+                  Moves
+                </div>
+                <TooltipProvider delayDuration={120}>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {inspectedRoster.moves.slice(0, 4).map((move) => {
+                      const moveDex = moveDexById[toMoveId(move)];
+                      const palette = getPreviewMoveTypeClasses(moveDex?.type);
+
+                      return (
+                        <Tooltip key={`${inspectedRoster.species}-${move}`}>
+                          <TooltipTrigger asChild>
+                            <div
+                              className={cn(
+                                "rounded-md border px-2 py-1.5 text-xs shadow-sm",
+                                palette.card
+                              )}
+                            >
+                              <div className="truncate font-medium text-foreground">
+                                {moveDex?.name ?? move}
+                              </div>
+                              <div className="mt-1 flex items-center justify-between gap-2">
+                                <span className={cn("truncate text-[11px] font-medium uppercase tracking-wide", palette.type)}>
+                                  {moveDex?.type ?? "Move"}
+                                </span>
+                                <span className={cn("shrink-0 text-[11px] font-medium", palette.meta)}>
+                                  {moveDex?.pp ? `${moveDex.pp} PP` : "-- PP"}
+                                </span>
+                              </div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent sideOffset={6} className="max-w-72 space-y-1.5 px-3 py-2 text-left">
+                            <div className="font-medium">{moveDex?.name ?? move}</div>
+                            <div className="text-[11px] leading-5 text-background/85">
+                              {moveDex?.shortDesc ?? "Loading move description..."}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
                   </div>
-                ))}
+                </TooltipProvider>
+              </div>
+              <div
+                className={cn(
+                  "space-y-3 transition-all duration-500 ease-out",
+                  isLaunchingPreview
+                    ? "max-h-56 translate-y-0 opacity-100"
+                    : "max-h-0 translate-y-2 overflow-hidden opacity-0"
+                )}
+              >
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 min-w-0 flex-1 rounded-full bg-black/8">
+                      <div className="h-full w-[72%] rounded-full bg-emerald-500" />
+                    </div>
+                    <div className="shrink-0 text-xs font-medium text-foreground/70">--%</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {inspectedRoster.moves.slice(0, 4).map((move) => {
+                    const moveDex = moveDexById[toMoveId(move)];
+                    const palette = getMoveTypeClasses(moveDex?.type);
+
+                    return (
+                      <div
+                        key={`${inspectedRoster.species}-launch-${move}`}
+                        className={cn("rounded-lg border px-2 py-1.5 text-xs shadow-sm", palette.card)}
+                      >
+                        <div className="truncate font-semibold text-foreground">
+                          {moveDex?.name ?? move}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                          <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-medium", palette.type)}>
+                            {moveDex?.type ?? "Move"}
+                          </span>
+                          <span className={cn("text-xs font-medium", palette.meta)}>--/--</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+          <div className="px-1 py-2 text-sm text-muted-foreground">
             Click a Pokemon in the roster to inspect it.
           </div>
         )}
@@ -692,7 +1029,12 @@ function BattleArenaSideCard({
   const previewRosterCard = (
     <div
       className={cn(
-        `rounded-xl border ${palette.border} ${palette.surface} p-2 shadow-sm`
+        "rounded-lg border bg-background p-1.5 transition-all duration-500 ease-out",
+        isLaunchingPreview
+          ? align === "left"
+            ? "translate-x-6 -translate-y-2 scale-95 opacity-70"
+            : "-translate-x-6 translate-y-2 scale-95 opacity-70"
+          : null
       )}
     >
       {teamGrid}
@@ -784,16 +1126,21 @@ function StageMoveEffectOverlay({
   }
 
   const palette = getMoveEffectPalette(activeEvent.moveType);
+  const isLeftAttacker = activeEvent.side === "p1";
 
   return (
     <div className="absolute inset-0 z-20 overflow-visible pointer-events-none">
       <div
         ref={bannerRef}
         className={cn(
-          "absolute left-1/2 top-1/2 rounded-md border bg-background/95 px-3 py-1 text-xs font-medium shadow-sm",
+          "absolute top-1/2 rounded-md border bg-background/95 px-3 py-1 text-xs font-medium shadow-sm",
           palette.text
         )}
-        style={{ borderColor: palette.glow }}
+        style={{
+          left: isLeftAttacker ? "37%" : "63%",
+          transform: "translate(-50%, -50%)",
+          borderColor: palette.glow,
+        }}
       >
         {activeEvent.moveName}
       </div>
@@ -809,13 +1156,70 @@ function StageMoveEffectOverlay({
   );
 }
 
+function PreviewMatchupLane({
+  leftLabel,
+  rightLabel,
+  introState = "idle",
+}: {
+  leftLabel: string;
+  rightLabel: string;
+  introState?: "idle" | "launching";
+}) {
+  const isLaunching = introState === "launching";
+
+  return (
+    <div className="relative mx-auto flex h-12 w-full max-w-3xl items-center justify-center overflow-hidden rounded-lg border bg-background/70 md:h-14 xl:h-16">
+      <div
+        className={cn(
+          "absolute inset-y-0 left-0 bg-foreground/[0.045] transition-[width] duration-500 ease-in-out",
+          isLaunching ? "w-1/2" : "w-0"
+        )}
+      />
+      <div
+        className={cn(
+          "absolute inset-y-0 right-0 bg-foreground/[0.045] transition-[width] duration-500 ease-in-out",
+          isLaunching ? "w-1/2" : "w-0"
+        )}
+      />
+      <div className="relative z-10 grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 md:px-5">
+        <div
+          className={cn(
+            "min-w-0 truncate text-sm font-medium text-foreground/80 transition-all duration-500 ease-in-out md:text-base",
+            isLaunching ? "translate-x-10 opacity-0" : "translate-x-0 opacity-100"
+          )}
+        >
+          {leftLabel}
+        </div>
+        <div
+          className={cn(
+            "rounded-md border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-all duration-400 ease-in-out",
+            isLaunching ? "scale-90 opacity-0" : "scale-100 opacity-100"
+          )}
+        >
+          vs
+        </div>
+        <div
+          className={cn(
+            "min-w-0 truncate text-right text-sm font-medium text-foreground/80 transition-all duration-500 ease-in-out md:text-base",
+            isLaunching ? "-translate-x-10 opacity-0" : "translate-x-0 opacity-100"
+          )}
+        >
+          {rightLabel}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StageSpriteAnchor({
   align,
   spriteCount,
+  previewMode = false,
   children,
 }: {
   align: "left" | "right";
   spriteCount: number;
+  previewMode?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -825,9 +1229,13 @@ function StageSpriteAnchor({
         spriteCount > 1
           ? "h-24 w-32 md:h-28 md:w-40 xl:h-32 xl:w-44"
           : "h-28 w-28 md:h-32 md:w-32 xl:h-40 xl:w-40",
-        align === "left"
-          ? "bottom-0 left-[14%] translate-y-8 justify-start md:left-[16%] md:translate-y-10 xl:left-[18%] xl:translate-y-12"
-          : "right-[14%] top-0 -translate-y-8 justify-end md:right-[16%] md:-translate-y-10 xl:right-[18%] xl:-translate-y-12"
+        previewMode
+          ? align === "left"
+            ? "bottom-0 left-[8%] translate-y-12 justify-start md:left-[10%] md:translate-y-14 xl:left-[12%] xl:translate-y-16"
+            : "right-[10%] top-0 -translate-y-12 justify-end md:right-[12%] md:-translate-y-14 xl:right-[14%] xl:-translate-y-16"
+          : align === "left"
+            ? "bottom-0 left-[14%] translate-y-10 justify-start md:left-[16%] md:translate-y-12 xl:left-[18%] xl:translate-y-14"
+            : "right-[14%] top-0 -translate-y-10 justify-end md:right-[16%] md:-translate-y-12 xl:right-[18%] xl:-translate-y-14"
       )}
     >
       {children}
@@ -839,6 +1247,8 @@ function StageSpriteVisual({
   align,
   transitionPhase,
   displayedSprites,
+  boostEntries,
+  statusEntries,
   damagedKeys,
   impactBurstKeys,
   spriteRefs,
@@ -846,6 +1256,14 @@ function StageSpriteVisual({
   align: "left" | "right";
   transitionPhase: "idle" | "recalling" | "sending";
   displayedSprites: StageSprite[];
+  boostEntries?: Array<{
+    species: string;
+    boosts: Record<string, number>;
+  }>;
+  statusEntries?: Array<{
+    species: string;
+    status?: string | null;
+  }>;
   damagedKeys: string[];
   impactBurstKeys: string[];
   spriteRefs: MutableRefObject<Record<string, HTMLDivElement | null>>;
@@ -866,56 +1284,100 @@ function StageSpriteVisual({
       )}
     >
       {displayedSprites.map((sprite, index) => (
-        <div
-          key={`${align}-${sprite.alt}`}
-          ref={(node) => {
-            spriteRefs.current[sprite.alt] = node;
-          }}
-          className={cn(
-            "relative flex items-end justify-center transition-all duration-200 ease-out will-change-transform",
-            spriteCount > 1
-              ? align === "left"
-                ? index === 0
-                  ? "z-10 h-full w-[62%]"
-                  : "ml-[-14%] h-[82%] w-[54%]"
-                : index === 0
-                  ? "z-10 h-full w-[62%]"
-                  : "mr-[-14%] h-[82%] w-[54%]"
-              : align === "left"
-                ? "h-full w-full"
-                : "h-[92%] w-[92%]",
-            getStageTransitionClasses(transitionPhase, align)
-          )}
-        >
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-[12%] rounded-full bg-foreground/10 blur-sm transition-opacity duration-150",
-              damagedKeys.includes(sprite.alt) ? "opacity-100" : "opacity-0"
-            )}
-          />
-          <div
-            className={cn(
-              "pointer-events-none absolute inset-[8%] rounded-full border border-border/70 bg-background/25 transition-opacity duration-150",
-              impactBurstKeys.includes(sprite.alt) ? "opacity-100" : "opacity-0"
-            )}
-          />
-          <img
-            src={sprite.url}
-            alt={sprite.alt}
-            className={cn(
-              "h-full w-full object-contain drop-shadow-[0_6px_10px_rgba(15,23,42,0.14)]",
-              sprite.fainted ? "grayscale opacity-45" : null,
-              align === "left" ? "object-left-bottom" : "object-right-top"
-            )}
-            loading="eager"
-            decoding="async"
-            onError={(event) => {
-              const target = event.currentTarget;
-              target.onerror = null;
-              target.src = getInlineSpriteFallback(sprite.alt);
-            }}
-          />
-        </div>
+        (() => {
+          const statusValue =
+            statusEntries?.find((entry) => toPokemonId(entry.species) === toPokemonId(sprite.alt))
+              ?.status ?? null;
+          const boostChips = getVisibleBoostChips(
+            boostEntries?.find((entry) => toPokemonId(entry.species) === toPokemonId(sprite.alt))
+              ?.boosts
+          );
+
+          return (
+            <div
+              key={`${align}-${sprite.alt}`}
+              ref={(node) => {
+                spriteRefs.current[sprite.alt] = node;
+              }}
+              className={cn(
+                "relative flex items-end justify-center transition-all duration-200 ease-out will-change-transform",
+                spriteCount > 1
+                  ? align === "left"
+                    ? index === 0
+                      ? "z-10 h-full w-[62%]"
+                      : "ml-[-14%] h-[82%] w-[54%]"
+                    : index === 0
+                      ? "z-10 h-full w-[62%]"
+                      : "mr-[-14%] h-[82%] w-[54%]"
+                  : align === "left"
+                    ? "h-full w-full"
+                    : "h-[92%] w-[92%]",
+                getStageTransitionClasses(transitionPhase, align)
+              )}
+            >
+              {statusValue || boostChips.length > 0 ? (
+                <div
+                  className={cn(
+                    "pointer-events-none absolute -top-7 z-20 flex max-w-[9rem] flex-wrap gap-1",
+                    align === "left" ? "left-0 justify-start" : "right-0 justify-end"
+                  )}
+                >
+                  {statusValue ? (
+                    <span
+                      className={cn(
+                        "rounded-md border px-1.5 py-0.5 text-[10px] font-medium shadow-sm",
+                        getStatusClasses(statusValue)
+                      )}
+                    >
+                      {statusValue}
+                    </span>
+                  ) : null}
+                  {boostChips.map((chip) => (
+                    <span
+                      key={`${sprite.alt}-${chip.key}`}
+                      className={cn(
+                        "rounded-md border px-1.5 py-0.5 text-[10px] font-medium shadow-sm",
+                        chip.positive
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-rose-200 bg-rose-50 text-rose-700"
+                      )}
+                    >
+                      {chip.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <div
+                className={cn(
+                  "pointer-events-none absolute inset-[12%] rounded-full bg-foreground/10 blur-sm transition-opacity duration-150",
+                  damagedKeys.includes(sprite.alt) ? "opacity-100" : "opacity-0"
+                )}
+              />
+              <div
+                className={cn(
+                  "pointer-events-none absolute inset-[8%] rounded-full border border-border/70 bg-background/25 transition-opacity duration-150",
+                  impactBurstKeys.includes(sprite.alt) ? "opacity-100" : "opacity-0"
+                )}
+              />
+              <img
+                src={sprite.url}
+                alt={sprite.alt}
+                className={cn(
+                  "h-full w-full object-contain drop-shadow-[0_6px_10px_rgba(15,23,42,0.14)]",
+                  sprite.fainted ? "grayscale opacity-45" : null,
+                  align === "left" ? "object-left-bottom" : "object-right-top"
+                )}
+                loading="eager"
+                decoding="async"
+                onError={(event) => {
+                  const target = event.currentTarget;
+                  target.onerror = null;
+                  target.src = getInlineSpriteFallback(sprite.alt);
+                }}
+              />
+            </div>
+          );
+        })()
       ))}
     </div>
   );
@@ -1243,14 +1705,26 @@ function useStagePokemonController({
 
 function StagePokemonSlot({
   sprites,
+  boostEntries,
+  statusEntries,
   align,
   attackEvent,
   impactEvent,
+  previewMode = false,
 }: {
   sprites?: StageSprite[];
+  boostEntries?: Array<{
+    species: string;
+    boosts: Record<string, number>;
+  }>;
+  statusEntries?: Array<{
+    species: string;
+    status?: string | null;
+  }>;
   align: "left" | "right";
   attackEvent?: BattleArenaActionEvent | null;
   impactEvent?: BattleArenaActionEvent | null;
+  previewMode?: boolean;
 }) {
   const { displayedSprites, transitionPhase, damagedKeys, impactBurstKeys, spriteRefs } =
     useStagePokemonController({
@@ -1266,11 +1740,13 @@ function StagePokemonSlot({
   }
 
   return (
-    <StageSpriteAnchor align={align} spriteCount={spriteCount}>
+    <StageSpriteAnchor align={align} spriteCount={spriteCount} previewMode={previewMode}>
       <StageSpriteVisual
         align={align}
         transitionPhase={transitionPhase}
         displayedSprites={displayedSprites}
+        boostEntries={boostEntries}
+        statusEntries={statusEntries}
         damagedKeys={damagedKeys}
         impactBurstKeys={impactBurstKeys}
         spriteRefs={spriteRefs}
@@ -1287,8 +1763,16 @@ export function BattleArena({
   topSide,
   bottomSide,
   actionEvent,
+  previewMatchup,
+  previewIntroState = "idle",
   className,
 }: BattleArenaProps) {
+  const isPreviewArena =
+    (topSide.showMeter ?? true) === false &&
+    (bottomSide.showMeter ?? true) === false &&
+    (!topSide.moves || topSide.moves.length === 0) &&
+    (!bottomSide.moves || bottomSide.moves.length === 0);
+
   return (
     <section
       className={cn(
@@ -1296,44 +1780,97 @@ export function BattleArena({
       className
       )}
     >
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#f8fafc_44%,#f7f8f5_44%,#f7f8f5_100%)]">
+      <div className="relative min-h-0 flex-1 overflow-hidden bg-[linear-gradient(180deg,#eef6ff_0%,#f4f8fd_40%,#e9f3df_40%,#eef7e5_100%)]">
         <div className="absolute inset-x-0 top-0 h-px bg-border/80" />
-        <div className="relative h-full min-h-0 p-2 md:p-3 xl:p-4">
-          <div className="absolute right-2 top-2 z-10 flex flex-wrap items-center gap-2 md:right-3 md:top-3 xl:right-4 xl:top-4">
-            <span className="rounded-md border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
-              {formatLabel}
-            </span>
-            <StatusPill value={status} />
-          </div>
+        <div className="absolute inset-x-0 top-[40%] h-px bg-border/60" />
+        <div
+          className={cn(
+            "relative h-full min-h-0 p-2 md:p-3 xl:p-4",
+            isPreviewArena ? "pb-8 md:pb-10 xl:pb-12" : null
+          )}
+        >
+          {isPreviewArena ? (
+            <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-2 pt-6 md:px-3 md:pt-8 xl:px-4 xl:pt-10">
+              <div className="flex items-start justify-end">
+                <BattleArenaSideCard
+                  side={topSide}
+                  accent="sky"
+                  align="right"
+                  previewIntroState={previewIntroState}
+                />
+              </div>
 
-          <div className="absolute right-2 top-10 md:right-3 md:top-11 xl:right-4 xl:top-12">
-            <BattleArenaSideCard side={topSide} accent="sky" align="right" />
-          </div>
+              <div className="flex min-h-0 items-start justify-center pt-10 md:pt-12 xl:pt-14">
+                <div className="relative w-full max-w-3xl">
+                  <StageMoveEffectOverlay actionEvent={actionEvent} />
+                  <StagePokemonSlot
+                    sprites={bottomSide.activeSprites}
+                    boostEntries={bottomSide.activeBoosts}
+                    statusEntries={bottomSide.activeStatuses}
+                    align="left"
+                    attackEvent={actionEvent?.side === "p1" ? actionEvent : null}
+                    impactEvent={actionEvent?.side === "p2" ? actionEvent : null}
+                    previewMode
+                  />
+                  <StagePokemonSlot
+                    sprites={topSide.activeSprites}
+                    boostEntries={topSide.activeBoosts}
+                    statusEntries={topSide.activeStatuses}
+                    align="right"
+                    attackEvent={actionEvent?.side === "p2" ? actionEvent : null}
+                    impactEvent={actionEvent?.side === "p1" ? actionEvent : null}
+                    previewMode
+                  />
+                  <PreviewMatchupLane
+                    leftLabel={previewMatchup?.leftLabel ?? bottomSide.trainerName}
+                    rightLabel={previewMatchup?.rightLabel ?? topSide.trainerName}
+                    introState={previewIntroState}
+                  />
+                </div>
+              </div>
 
-          <div className="absolute inset-x-2 top-1/2 flex -translate-y-1/2 items-center justify-center md:inset-x-3 xl:inset-x-4">
-            <div className="relative mx-auto flex h-12 w-full max-w-3xl items-center justify-center rounded-lg border bg-background/70 md:h-14 xl:h-16">
-              <StageMoveEffectOverlay actionEvent={actionEvent} />
-              <StagePokemonSlot
-                sprites={bottomSide.activeSprites}
-                align="left"
-                attackEvent={actionEvent?.side === "p1" ? actionEvent : null}
-                impactEvent={actionEvent?.side === "p2" ? actionEvent : null}
-              />
-              <StagePokemonSlot
-                sprites={topSide.activeSprites}
-                align="right"
-                attackEvent={actionEvent?.side === "p2" ? actionEvent : null}
-                impactEvent={actionEvent?.side === "p1" ? actionEvent : null}
-              />
-              <div className="rounded-md border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
-                vs
+              <div className="flex items-end justify-start">
+                <BattleArenaSideCard
+                  side={bottomSide}
+                  accent="amber"
+                  align="left"
+                  previewIntroState={previewIntroState}
+                />
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 px-2 pt-6 md:px-3 md:pt-8 xl:px-4 xl:pt-10">
+              <div className="flex items-start justify-end">
+                <BattleArenaSideCard side={topSide} accent="sky" align="right" />
+              </div>
 
-          <div className="absolute bottom-2 left-2 md:bottom-3 md:left-3 xl:bottom-4 xl:left-4">
-            <BattleArenaSideCard side={bottomSide} accent="amber" align="left" />
-          </div>
+              <div className="flex min-h-0 items-start justify-center pt-10 md:pt-12 xl:pt-14">
+                <div className="relative w-full max-w-3xl">
+                  <StageMoveEffectOverlay actionEvent={actionEvent} />
+                  <StagePokemonSlot
+                    sprites={bottomSide.activeSprites}
+                    boostEntries={bottomSide.activeBoosts}
+                    statusEntries={bottomSide.activeStatuses}
+                    align="left"
+                    attackEvent={actionEvent?.side === "p1" ? actionEvent : null}
+                    impactEvent={actionEvent?.side === "p2" ? actionEvent : null}
+                  />
+                  <StagePokemonSlot
+                    sprites={topSide.activeSprites}
+                    boostEntries={topSide.activeBoosts}
+                    statusEntries={topSide.activeStatuses}
+                    align="right"
+                    attackEvent={actionEvent?.side === "p2" ? actionEvent : null}
+                    impactEvent={actionEvent?.side === "p1" ? actionEvent : null}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-end justify-start">
+                <BattleArenaSideCard side={bottomSide} accent="amber" align="left" />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

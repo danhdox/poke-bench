@@ -34,14 +34,24 @@ export async function getRecentBattles(limit = 8) {
 }
 
 export async function getActiveBattles(limit = 8) {
+  const linkedBattleIds = await prisma.tournamentBattle.findMany({
+    select: {
+      battleId: true,
+    },
+  });
+
   return prisma.battle.findMany({
     where: {
       status: {
         in: ["pending", "running"],
       },
-      tournamentBattles: {
-        none: {},
-      },
+      ...(linkedBattleIds.length > 0
+        ? {
+            id: {
+              notIn: linkedBattleIds.map((entry) => entry.battleId),
+            },
+          }
+        : {}),
     },
     include: {
       agent1: true,

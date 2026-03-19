@@ -854,6 +854,42 @@ export function LiveBattle({ initialBattle }: { initialBattle: LiveBattlePayload
     );
   }, [p1SideObservation.active, p1SideObservation.bench, team1PreviewSpecies]);
 
+  const p1ActiveBoosts = useMemo(
+    () =>
+      p1SideObservation.active.map((pokemon) => ({
+        species: reconcileSpeciesWithPreview(pokemon.species, team1PreviewSpecies),
+        boosts: pokemon.boosts ?? {},
+      })),
+    [p1SideObservation.active, team1PreviewSpecies]
+  );
+
+  const p2ActiveBoosts = useMemo(
+    () =>
+      p2SideObservation.active.map((pokemon) => ({
+        species: reconcileSpeciesWithPreview(pokemon.species, team2PreviewSpecies),
+        boosts: pokemon.boosts ?? {},
+      })),
+    [p2SideObservation.active, team2PreviewSpecies]
+  );
+
+  const p1ActiveStatuses = useMemo(
+    () =>
+      p1SideObservation.active.map((pokemon) => ({
+        species: reconcileSpeciesWithPreview(pokemon.species, team1PreviewSpecies),
+        status: pokemon.status ?? null,
+      })),
+    [p1SideObservation.active, team1PreviewSpecies]
+  );
+
+  const p2ActiveStatuses = useMemo(
+    () =>
+      p2SideObservation.active.map((pokemon) => ({
+        species: reconcileSpeciesWithPreview(pokemon.species, team2PreviewSpecies),
+        status: pokemon.status ?? null,
+      })),
+    [p2SideObservation.active, team2PreviewSpecies]
+  );
+
   const battleOutcome = useMemo(() => getBattleOutcome(battle), [battle]);
   const pendingThinkingMessage = useMemo(() => getPendingThinkingMessage(battle), [battle]);
 
@@ -981,6 +1017,8 @@ export function LiveBattle({ initialBattle }: { initialBattle: LiveBattlePayload
               roster: team2Roster,
               highlightedSpecies: topSideSprites.highlightedSpecies,
               activeSprites: topSideSprites.activeSprites,
+              activeBoosts: p2ActiveBoosts,
+              activeStatuses: p2ActiveStatuses,
               sprites: topSideSprites.sprites,
             }}
             bottomSide={{
@@ -995,6 +1033,8 @@ export function LiveBattle({ initialBattle }: { initialBattle: LiveBattlePayload
               roster: team1Roster,
               highlightedSpecies: bottomSideSprites.highlightedSpecies,
               activeSprites: bottomSideSprites.activeSprites,
+              activeBoosts: p1ActiveBoosts,
+              activeStatuses: p1ActiveStatuses,
               sprites: bottomSideSprites.sprites,
             }}
           />

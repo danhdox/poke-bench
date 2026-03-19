@@ -29,11 +29,6 @@ export const MODEL_CATALOG = {
         name: "GPT-4.1",
         summary: "Stronger general model when you want a higher-quality policy.",
       },
-      {
-        id: "gpt-5-mini",
-        name: "GPT-5 Mini",
-        summary: "Placeholder reasoning-oriented preset for future comparisons.",
-      },
     ],
   },
   anthropic: {
@@ -41,19 +36,19 @@ export const MODEL_CATALOG = {
     description: "Preset model options for the server-side Anthropic battle agent.",
     models: [
       {
-        id: "claude-3-5-haiku-latest",
-        name: "Claude 3.5 Haiku",
-        summary: "Fast default preset for iterative battles.",
+        id: "claude-haiku-4-5-20251001",
+        name: "Claude Haiku 4.5",
+        summary: "Fast Anthropic preset for cheaper battle loops.",
       },
       {
-        id: "claude-3-7-sonnet-latest",
-        name: "Claude 3.7 Sonnet",
-        summary: "Stronger balanced preset for more deliberate play.",
+        id: "claude-sonnet-4-6",
+        name: "Claude Sonnet 4.6",
+        summary: "Balanced default Anthropic preset for stronger tactical play.",
       },
       {
-        id: "claude-opus-4-1",
-        name: "Claude Opus 4.1",
-        summary: "Placeholder high-end preset for deeper comparisons.",
+        id: "claude-opus-4-6",
+        name: "Claude Opus 4.6",
+        summary: "High-end Anthropic preset for deeper battle comparisons.",
       },
     ],
   },
